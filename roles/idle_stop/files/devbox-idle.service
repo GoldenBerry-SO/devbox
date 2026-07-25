@@ -1,0 +1,5 @@
+[Unit]
+Description=devbox idle-aware shutdown check
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/devbox-idle-check

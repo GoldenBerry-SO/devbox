@@ -1,0 +1,8 @@
+[Unit]
+Description=devbox nightly tool refresh timer
+[Timer]
+OnCalendar=*-*-* 04:30:00
+RandomizedDelaySec=30min
+Persistent=true
+[Install]
+WantedBy=timers.target

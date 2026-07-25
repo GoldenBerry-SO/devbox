@@ -1,0 +1,8 @@
+#!/bin/bash
+# Nightly tool refresh (systemd timer): keeps the agent CLIs + herdr current.
+# OS security patches are handled by unattended-upgrades.
+set -uo pipefail
+echo "== devbox nightly refresh $(date -Is) =="
+npm update -g @anthropic-ai/claude-code @openai/codex 2>&1 | tail -2 || true
+herdr update 2>&1 | tail -1 || echo "herdr update skipped"
+echo "== refresh done =="

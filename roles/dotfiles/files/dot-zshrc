@@ -1,0 +1,59 @@
+# Linux (omarchy-zsh)
+[[ $- != *i* ]] && return
+
+[[ -f /usr/share/omarchy-zsh/shell/zoptions ]] && source /usr/share/omarchy-zsh/shell/zoptions
+[[ -f /usr/share/omarchy-zsh/shell/all ]] && source /usr/share/omarchy-zsh/shell/all
+
+autoload -Uz compinit && compinit
+
+source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+source /usr/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh
+
+# Vi keybindings for the command line (dd, cc, x, D, ...)
+bindkey -v
+KEYTIMEOUT=1
+bindkey '^[[A' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
+
+# Keep a few emacs-style keys usable inside vi insert mode
+bindkey -M viins '^?' backward-delete-char   # backspace past the insert point
+bindkey -M viins '^A' beginning-of-line
+bindkey -M viins '^E' end-of-line
+bindkey -M viins '^W' backward-kill-word
+
+# Cursor shape follows the mode: steady block in normal, steady beam in insert
+autoload -Uz add-zle-hook-widget
+_vi_cursor_shape() {
+  case $KEYMAP in
+    vicmd)      printf '\e[2 q' ;;
+    viins|main) printf '\e[6 q' ;;
+  esac
+}
+add-zle-hook-widget keymap-select _vi_cursor_shape
+add-zle-hook-widget line-init     _vi_cursor_shape
+
+[[ -f /usr/share/doc/git-extras/git-extras-completion.zsh ]] && source /usr/share/doc/git-extras/git-extras-completion.zsh
+
+export PATH="$HOME/.local/bin:$PATH"
+export OMARCHY_PATH="$HOME/.local/share/omarchy"
+
+alias claude-yolo='claude --dangerously-skip-permissions'
+alias open='xdg-open'
+
+unalias t 2>/dev/null
+t() {
+  local name="${1:-main}"
+  if tmux has-session -t "$name" 2>/dev/null; then
+    tmux attach -t "$name"
+  else
+    tmux new-session -d -s "$name"
+    tmux split-window -t "$name".1 -v -p 25
+    tmux split-window -t "$name".1 -h -p 80
+    tmux split-window -t "$name".2 -h -p 75
+    tmux select-pane -t "$name".1
+    tmux attach -t "$name"
+  fi
+}
+
+

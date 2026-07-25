@@ -1,0 +1,53 @@
+---
+# Write a managed ~/.ssh/config block for the box and print the connect commands.
+# Runs on localhost after the box is configured. No-op for the power/teardown flows.
+
+- name: Wire up local SSH access
+  when:
+    - devbox_action is not defined
+    - groups['devbox'] is defined
+    - groups['devbox'] | length > 0
+  block:
+    - name: Resolve the box IP
+      ansible.builtin.set_fact:
+        _box_ip: "{{ hostvars[groups['devbox'][0]].ansible_host }}"
+
+    - name: Ensure ~/.ssh exists
+      ansible.builtin.file:
+        path: "{{ '~/.ssh' | expanduser }}"
+        state: directory
+        mode: "0700"
+
+    # A dedicated known_hosts for the box + accept-new gives trust-on-first-use
+    # without the "host key changed!" wall every time you rebuild the box.
+    - name: Clear any stale host key (rebuilds regenerate it)
+      ansible.builtin.known_hosts:
+        path: "{{ '~/.ssh/known_hosts.devbox' | expanduser }}"
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ ssh_host_alias }}"
+        - "{{ _box_ip }}"
+
+    - name: Write the managed ssh config block
+      ansible.builtin.blockinfile:
+        path: "{{ '~/.ssh/config' | expanduser }}"
+        create: true
+        mode: "0600"
+        marker: "# {mark} devbox: {{ ssh_host_alias }}"
+        block: |
+          Host {{ ssh_host_alias }}
+              HostName {{ _box_ip }}
+              User {{ devbox_user }}
+              IdentityFile {{ ssh_private_key_file }}
+              IdentitiesOnly yes
+              StrictHostKeyChecking accept-new
+              UserKnownHostsFile ~/.ssh/known_hosts.devbox
+
+    - name: You're in
+      ansible.builtin.debug:
+        msg:
+          - "devbox is ready at {{ _box_ip }}"
+          - "connect:            ssh {{ ssh_host_alias }}"
+          - "agent that outlives your laptop:   herdr --remote {{ ssh_host_alias }}"
+          - "health check:       ./doctor"

@@ -1,0 +1,7 @@
+[Unit]
+Description=devbox idle-aware shutdown timer
+[Timer]
+OnBootSec=30min
+OnUnitActiveSec=15min
+[Install]
+WantedBy=timers.target

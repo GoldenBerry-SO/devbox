@@ -1,0 +1,45 @@
+---
+# Put /home on the persistent Hetzner volume so it survives server rebuilds.
+# Runs BEFORE the user is created (base role), so the user's home lands on the
+# volume. On a rebuild the volume already holds /home and is only re-mounted —
+# it is NEVER reformatted (that would wipe your work).
+#
+# Skipped for provider: existing (BYO server uses its own disk for /home).
+
+- name: Persistent /home
+  when: provider | default('hetzner') == 'hetzner'
+  block:
+    - name: Find the attached Hetzner volume device
+      ansible.builtin.find:
+        paths: /dev/disk/by-id
+        patterns: "scsi-0HC_Volume_*"
+        file_type: link
+      register: _vol
+
+    - name: Fail clearly if the volume is not attached
+      ansible.builtin.fail:
+        msg: "No Hetzner volume found under /dev/disk/by-id/scsi-0HC_Volume_*. Was the volume created + attached?"
+      when: _vol.files | length == 0
+
+    - name: Select the volume device
+      ansible.builtin.set_fact:
+        _home_dev: "{{ _vol.files[0].path }}"
+
+    # force: false means an existing ext4 is left untouched (the module is a
+    # no-op) and a different existing filesystem makes it FAIL rather than
+    # overwrite. Only a blank volume gets formatted. This is the guard that
+    # protects your data on every rebuild — keep it explicit.
+    - name: Create an ext4 filesystem on a FRESH volume only
+      community.general.filesystem:
+        fstype: ext4
+        dev: "{{ _home_dev }}"
+        force: false
+        opts: "-m 0 -E lazy_itable_init=0,lazy_journal_init=0"
+
+    - name: Mount it at /home (nofail so a detached volume never blocks boot)
+      ansible.posix.mount:
+        path: /home
+        src: "{{ _home_dev }}"
+        fstype: ext4
+        opts: "defaults,nofail,discard"
+        state: mounted

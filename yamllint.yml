@@ -1,0 +1,8 @@
+extends: relaxed
+ignore: |
+  .ansible/
+  .venv/
+  .github/
+rules:
+  line-length: disable
+  truthy: disable

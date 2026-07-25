@@ -1,0 +1,19 @@
+---
+# terraform + packer (HashiCorp). Enabled by features.cloud.
+- name: HashiCorp apt keyring
+  ansible.builtin.get_url:
+    url: https://apt.releases.hashicorp.com/gpg
+    dest: /etc/apt/keyrings/hashicorp.asc
+    mode: "0644"
+
+- name: HashiCorp repo
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/hashicorp.asc] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+    filename: hashicorp
+    state: present
+
+- name: Install terraform + packer
+  ansible.builtin.apt:
+    name: [terraform, packer]
+    update_cache: true
+    state: present

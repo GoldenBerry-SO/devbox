@@ -1,0 +1,44 @@
+---
+# devbox — provision (or adopt) a box, configure it, and wire up `ssh <alias>`.
+#
+#   ./up            runs this end to end
+#   ansible-playbook devbox.yml    (equivalent, if you prefer raw ansible)
+
+# 1. Provision the Hetzner box (skipped for provider: existing).
+- name: Provision
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files: [config.yml]
+  tasks:
+    - name: Provision the Hetzner box
+      ansible.builtin.include_role:
+        name: hetzner_provision
+      when: provider | default('hetzner') == 'hetzner'
+
+# 2. Configure the box. Targets the 'devbox' group, populated either by the
+#    provision role above (add_host) or by inventory/hosts.yml for BYO servers.
+- name: Configure
+  hosts: devbox
+  become: true
+  gather_facts: true
+  vars_files: [config.yml]
+  roles:
+    - persistent_home
+    - base
+    - dev_tools
+    - role: agent
+      when: features.agent | default(true)
+    - role: dotfiles
+      when: features.dotfiles | default(true)
+    - role: idle_stop
+      when: features.idle_stop | default(true)
+
+# 3. Write the local ~/.ssh/config entry and print the connect commands.
+- name: Connect
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files: [config.yml]
+  roles:
+    - connect

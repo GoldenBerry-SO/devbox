@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# devbox stop — power the box off (keeps the server; ./start to resume).
+set -euo pipefail
+cd "$(dirname "$0")"
+exec ansible-playbook devbox.yml --tags never,power -e "devbox_action=stop"

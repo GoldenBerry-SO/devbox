@@ -1,0 +1,182 @@
+---
+# Docker, Node, language runtimes, git tooling and the everyday CLI kit.
+# Cloud/K8s extras are split into toggleable includes at the end.
+
+# --- Docker (official repo) ---
+- name: Docker apt keyring
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+
+- name: Docker apt repo
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    filename: docker
+    state: present
+
+- name: Docker packages
+  ansible.builtin.apt:
+    name: [docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]
+    update_cache: true
+    state: present
+
+- name: Add the devbox user to the docker group
+  ansible.builtin.user:
+    name: "{{ devbox_user }}"
+    groups: docker
+    append: true
+
+# --- Node 24 + package managers ---
+- name: NodeSource setup (Node 24)
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+  args:
+    executable: /bin/bash
+    creates: /etc/apt/sources.list.d/nodesource.list
+
+- name: Node
+  ansible.builtin.apt:
+    name: nodejs
+    update_cache: true
+    state: present
+
+- name: Install pnpm (global)
+  community.general.npm:
+    name: pnpm
+    global: true
+
+- name: Enable yarn via corepack (only yarn — a bare enable would shim pnpm too)
+  ansible.builtin.command: corepack enable yarn
+  changed_when: false
+
+- name: Install bun + uv (system-wide)
+  ansible.builtin.shell: "{{ item.cmd }}"
+  args:
+    executable: /bin/bash
+    creates: "{{ item.creates }}"
+  loop:
+    - { cmd: "curl -fsSL https://bun.sh/install | BUN_INSTALL=/usr/local bash", creates: /usr/local/bin/bun }
+    - { cmd: "curl -fsSL https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh", creates: /usr/local/bin/uv }
+
+# --- git / GitHub / GitLab tooling ---
+- name: GitHub CLI keyring
+  ansible.builtin.get_url:
+    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    dest: /etc/apt/keyrings/githubcli.gpg
+    mode: "0644"
+
+- name: GitHub CLI repo
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/githubcli.gpg] https://cli.github.com/packages stable main"
+    filename: github-cli
+    state: present
+
+- name: Install gh
+  ansible.builtin.apt:
+    name: gh
+    update_cache: true
+    state: present
+
+- name: Resolve latest glab version
+  ansible.builtin.uri:
+    url: https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/releases
+    return_content: true
+  register: _glab_rel
+
+- name: Compute glab tag/version
+  ansible.builtin.set_fact:
+    _glab_tag: "{{ _glab_rel.json[0].tag_name }}"
+    _glab_ver: "{{ _glab_rel.json[0].tag_name | regex_replace('^v', '') }}"
+
+- name: Install glab (.deb)
+  ansible.builtin.apt:
+    deb: "https://gitlab.com/gitlab-org/cli/-/releases/{{ _glab_tag }}/downloads/glab_{{ _glab_ver }}_linux_amd64.deb"
+    state: present
+
+# --- everyday CLI kit (release binaries) ---
+- name: Install psql client + redis tools (PGDG for a current psql)
+  block:
+    - name: PGDG keyring
+      ansible.builtin.get_url:
+        url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        dest: /etc/apt/trusted.gpg.d/pgdg.asc
+        mode: "0644"
+    - name: PGDG repo
+      ansible.builtin.apt_repository:
+        repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_distribution_release }}-pgdg main"
+        filename: pgdg
+        state: present
+    - name: Install psql + redis-cli
+      ansible.builtin.apt:
+        name: [postgresql-client-18, redis-tools]
+        update_cache: true
+        state: present
+
+- name: Install yq
+  ansible.builtin.get_url:
+    url: https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+    dest: /usr/local/bin/yq
+    mode: "0755"
+
+- name: Install mkcert
+  ansible.builtin.get_url:
+    url: "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
+    dest: /usr/local/bin/mkcert
+    mode: "0755"
+
+- name: Neovim (latest stable — apt's is too old for LazyVim)
+  ansible.builtin.unarchive:
+    src: https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz
+    dest: /opt
+    remote_src: true
+    creates: /opt/nvim-linux-x86_64
+
+- name: Link nvim onto PATH
+  ansible.builtin.file:
+    src: /opt/nvim-linux-x86_64/bin/nvim
+    dest: /usr/local/bin/nvim
+    state: link
+    force: true
+
+- name: Install lazygit
+  block:
+    - name: Resolve latest lazygit tag
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/jesseduffield/lazygit/releases/latest
+        return_content: true
+      register: _lg
+    - name: Compute lazygit tag/version
+      ansible.builtin.set_fact:
+        _lg_tag: "{{ _lg.json.tag_name }}"
+        _lg_ver: "{{ _lg.json.tag_name | regex_replace('^v', '') }}"
+    - name: Download + unpack lazygit
+      ansible.builtin.unarchive:
+        src: "https://github.com/jesseduffield/lazygit/releases/download/{{ _lg_tag }}/lazygit_{{ _lg_ver }}_Linux_x86_64.tar.gz"
+        dest: /usr/local/bin
+        include: [lazygit]
+        remote_src: true
+
+- name: Install ast-grep (release binary — npm's sg bin collides with Ubuntu's sg)
+  block:
+    - name: Resolve latest ast-grep tag
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/ast-grep/ast-grep/releases/latest
+        return_content: true
+      register: _ag
+    - name: Install ast-grep + sg
+      ansible.builtin.unarchive:
+        src: "https://github.com/ast-grep/ast-grep/releases/download/{{ _ag.json.tag_name }}/app-x86_64-unknown-linux-gnu.zip"
+        dest: /usr/local/bin
+        remote_src: true
+        mode: "0755"
+
+# --- toggleable groups ---
+- name: Kubernetes tooling
+  ansible.builtin.include_tasks: k8s.yml
+  when: features.k8s | default(true)
+
+- name: Cloud/IaC tooling
+  ansible.builtin.include_tasks: cloud.yml
+  when: features.cloud | default(false)

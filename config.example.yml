@@ -1,0 +1,36 @@
+---
+# Copy to config.yml and fill in. config.yml is gitignored — it's yours.
+# Everything not set here inherits the defaults in group_vars/all.yml.
+
+# REQUIRED --------------------------------------------------------------------
+
+# Hetzner Cloud API token (Project -> Security -> API Tokens, Read & Write).
+# Prefer an env var so the token never touches disk:  export HCLOUD_TOKEN=...
+hcloud_token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+
+# Your SSH keypair. The public key is added to the box; the private key is used
+# to connect and is referenced in the generated ~/.ssh/config entry.
+ssh_public_key_file: "~/.ssh/id_ed25519.pub"
+ssh_private_key_file: "~/.ssh/id_ed25519"
+
+# COMMON OVERRIDES (optional) -------------------------------------------------
+
+# server_type: cpx41        # cpx51 for 32 GB RAM
+# location: nbg1            # ash / hil for US
+# volume_size: 100          # GB of persistent /home
+# allow_ssh_from: auto      # 'auto' = your current IP; or ["1.2.3.0/24"]; or "0.0.0.0/0"
+# ssh_host_alias: devbox    # ssh <this>
+
+# features:
+#   agent: true
+#   k8s: true
+#   cloud: false
+#   idle_stop: true
+
+# repos:                    # cloned into ~/Src on first login (needs your gh auth)
+#   - https://github.com/you/your-project
+
+# BRING YOUR OWN SERVER -------------------------------------------------------
+# To configure an existing Ubuntu 24.04 host instead of provisioning Hetzner:
+#   provider: existing
+# and add the host to inventory/hosts.yml (see inventory/hosts.yml.example).

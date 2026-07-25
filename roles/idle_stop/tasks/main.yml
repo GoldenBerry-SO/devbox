@@ -1,0 +1,38 @@
+---
+# Idle-stop + nightly agent-CLI refresh, via systemd timers.
+#
+# NOTE on Hetzner cost: a powered-OFF Hetzner server is still billed (you pay
+# for the server resource, only the traffic stops). Real savings come from
+# deleting the server and keeping the volume (./down, then ./up to rebuild —
+# your /home is intact). Poweroff here is about not running an idle machine;
+# see docs/CONFIGURING.md for the destroy/recreate cost mode.
+
+- name: Install the idle-check + nightly-refresh scripts
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: "0755"
+  loop:
+    - devbox-idle-check
+    - devbox-nightly-refresh
+
+- name: Install the systemd units
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - devbox-idle.service
+    - devbox-idle.timer
+    - devbox-refresh.service
+    - devbox-refresh.timer
+
+- name: Enable the timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - devbox-idle.timer
+    - devbox-refresh.timer

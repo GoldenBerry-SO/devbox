@@ -1,0 +1,13 @@
+---
+exclude_paths:
+  - .ansible/
+  - .venv/
+  - .github/
+skip_list:
+  - command-instead-of-shell   # third-party installs via shell are deliberate
+  - no-changed-when            # curl|sh installers are guarded by 'creates:'
+  - risky-shell-pipe           # curl|bash is the documented upstream install
+  - var-naming[no-role-prefix] # we use _underscore for role-local temp vars
+  - fqcn[action-core]
+warn_list:
+  - experimental

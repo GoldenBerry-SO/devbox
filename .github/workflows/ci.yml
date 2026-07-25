@@ -1,0 +1,42 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install linters + collections
+        run: |
+          pip install ansible-lint yamllint
+          ansible-galaxy collection install -r requirements.yml
+      - name: yamllint
+        run: yamllint -c yamllint.yml .
+      - name: ansible-lint
+        run: ansible-lint
+
+  no-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse any committed secret or personal config
+        run: |
+          set -e
+          # Token-shaped strings must never appear in the repo.
+          if grep -rIn -E 'glpat-[A-Za-z0-9]|ghp_[A-Za-z0-9]|sk-ant-[A-Za-z0-9]|xox[bap]-[A-Za-z0-9]|-----BEGIN [A-Z ]*PRIVATE KEY-----' \
+               --exclude-dir=.git . ; then
+            echo "::error::A token/secret-shaped string is committed. Remove it."; exit 1
+          fi
+          # A real config.yml or private key must never be committed.
+          for f in config.yml id_rsa id_ed25519; do
+            if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+              echo "::error::$f is committed — it must stay local."; exit 1
+            fi
+          done
+          echo "no secrets found."

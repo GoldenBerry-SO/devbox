@@ -1,0 +1,10 @@
+# Your personal config — never commit it (contains token refs / your IP / keys)
+config.yml
+*.retry
+.venv/
+__pycache__/
+*.pyc
+# Vendored Ansible collections (installed by ./up into ./.ansible/collections)
+.ansible/
+# Ansible transient
+inventory/*.hcloud.yml.cache

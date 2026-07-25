@@ -1,0 +1,17 @@
+# Prompt + dev-tool integrations the dotfile expects.
+command -v starship >/dev/null && eval "$(starship init zsh)"
+command -v zoxide   >/dev/null && eval "$(zoxide init zsh)"
+command -v direnv   >/dev/null && eval "$(direnv hook zsh)"
+command -v mise     >/dev/null && eval "$(mise activate zsh)"
+
+# eza-as-ls
+if command -v eza >/dev/null; then
+  alias ls="eza --group-directories-first"
+  alias ll="eza -lhF --git --group-directories-first"
+  alias la="eza -laFh --git --group-directories-first"
+  alias tree="eza --tree --level=3 --git-ignore"
+fi
+
+export EDITOR=nvim
+export VISUAL=nvim
+[ -d "$HOME/.bun/bin" ] && export PATH="$HOME/.bun/bin:$PATH"

@@ -1,0 +1,8 @@
+---
+# Only needed for `provider: existing` (bring-your-own-server).
+# When provider is 'hetzner', the box is discovered automatically.
+devbox:
+  hosts:
+    my-box:
+      ansible_host: 203.0.113.10      # your server's IP or DNS
+      ansible_user: root

@@ -1,0 +1,159 @@
+---
+# Base layer: apt essentials, zsh + plugins + starship, the devbox user, shell
+# defaults, MOTD, unattended security upgrades. Provider-agnostic.
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Base packages
+  ansible.builtin.apt:
+    name:
+      - zsh
+      - git
+      - git-extras
+      - curl
+      - wget
+      - unzip
+      - xz-utils
+      - build-essential
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - rsync
+      - tmux
+      - make
+      - python3-pip
+      - pipx
+      - ripgrep
+      - fd-find
+      - bat
+      - eza
+      - fzf
+      - zoxide
+      - direnv
+      - jq
+      - shellcheck
+      - apt-transport-https
+      - unattended-upgrades
+      - htop
+      - sqlite3
+      - dnsutils
+      - libnss3-tools
+      - zsh-autosuggestions
+      - zsh-syntax-highlighting
+    state: present
+
+# Ubuntu renames fd/bat — restore the names configs expect
+- name: Symlink fd + bat to expected names
+  ansible.builtin.file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: link
+    force: true
+  loop:
+    - { src: /usr/bin/fdfind, dest: /usr/local/bin/fd }
+    - { src: /usr/bin/batcat, dest: /usr/local/bin/bat }
+
+- name: Create zsh plugin dirs (Arch-style paths the zshrc sources)
+  ansible.builtin.file:
+    path: "/usr/share/zsh/plugins/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: [zsh-autosuggestions, zsh-syntax-highlighting]
+
+- name: Link apt zsh plugins into the expected layout
+  ansible.builtin.file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: link
+    force: true
+  loop:
+    - { src: /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh, dest: /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh }
+    - { src: /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh, dest: /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh }
+
+- name: Install zsh-history-substring-search plugin
+  ansible.builtin.git:
+    repo: https://github.com/zsh-users/zsh-history-substring-search
+    dest: /usr/share/zsh/plugins/zsh-history-substring-search
+    depth: 1
+    version: master
+
+- name: Shell stand-ins (sourced by the zshrc)
+  ansible.builtin.copy:
+    src: "omarchy/{{ item }}"
+    dest: "/usr/share/omarchy-zsh/shell/{{ item }}"
+    mode: "0644"
+  loop: [zoptions, all]
+
+- name: Install starship prompt
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL https://starship.rs/install.sh | sh -s -- --yes --bin-dir /usr/local/bin
+  args:
+    executable: /bin/bash
+    creates: /usr/local/bin/starship
+
+# --- the devbox user (single owner) ---
+- name: Create the devbox user (uid pinned so /home ownership survives rebuilds)
+  ansible.builtin.user:
+    name: "{{ devbox_user }}"
+    uid: "{{ devbox_uid }}"
+    shell: /usr/bin/zsh
+    groups: [sudo]
+    append: true
+    create_home: true
+
+- name: Passwordless sudo for the devbox user
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/90-{{ devbox_user }}"
+    content: "{{ devbox_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Authorize the SSH key for the devbox user
+  ansible.posix.authorized_key:
+    user: "{{ devbox_user }}"
+    key: "{{ lookup('file', ssh_public_key_file | expanduser) }}"
+    state: present
+
+- name: Default new local accounts to zsh
+  ansible.builtin.lineinfile:
+    path: /etc/default/useradd
+    regexp: '^SHELL='
+    line: 'SHELL=/usr/bin/zsh'
+
+- name: Hand interactive bash sessions over to zsh
+  ansible.builtin.blockinfile:
+    path: /etc/bash.bashrc
+    marker: "# {mark} devbox zsh handoff"
+    block: |
+      if [ -n "$PS1" ] && [ -t 0 ] && [ -x /usr/bin/zsh ] && [ -z "${DEVBOX_NO_ZSH:-}" ]; then
+          export SHELL=/usr/bin/zsh
+          exec /usr/bin/zsh -l
+      fi
+
+# --- MOTD ---
+- name: Install the devbox MOTD banner
+  ansible.builtin.copy:
+    src: motd/10-devbox
+    dest: /etc/update-motd.d/10-devbox
+    mode: "0755"
+
+- name: Silence Ubuntu's default motd noise
+  ansible.builtin.file:
+    path: "/etc/update-motd.d/{{ item }}"
+    mode: "0644"
+  loop: ["10-help-text", "50-motd-news"]
+  failed_when: false
+
+# --- unattended security upgrades ---
+- name: Enable unattended security upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";

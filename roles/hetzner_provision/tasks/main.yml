@@ -1,0 +1,118 @@
+---
+# Provision (or power/teardown) the Hetzner box. All hcloud API calls run from
+# localhost. On a normal `up` this ensures the ssh key, firewall, persistent
+# volume and server exist and the server is running, then hands the box to the
+# configure play via add_host.
+
+# --- lifecycle: stop / start (./stop, ./start) -------------------------------
+- name: Power the server on/off
+  hetzner.hcloud.server:
+    api_token: "{{ hcloud_token }}"
+    name: "{{ server_name }}"
+    state: "{{ 'started' if devbox_action | default('') == 'start' else 'stopped' }}"
+  when: devbox_action | default('') in ['start', 'stop']
+  tags: [never, power]
+
+# --- lifecycle: teardown (./down [--purge]) ----------------------------------
+- name: Delete the server (keeps the volume unless --purge)
+  hetzner.hcloud.server:
+    api_token: "{{ hcloud_token }}"
+    name: "{{ server_name }}"
+    state: absent
+  when: devbox_action | default('') == 'down'
+  tags: [never, teardown]
+
+- name: Delete the persistent volume (--purge only — this destroys your work)
+  hetzner.hcloud.volume:
+    api_token: "{{ hcloud_token }}"
+    name: "{{ server_name }}-home"
+    state: absent
+  when:
+    - devbox_action | default('') == 'down'
+    - devbox_purge_volume | default(false) | bool
+  tags: [never, teardown]
+
+# --- normal provisioning (./up) ----------------------------------------------
+- name: Resolve the SSH source range
+  when: allow_ssh_from == 'auto'
+  block:
+    - name: Look up this machine's public IP
+      ansible.builtin.uri:
+        url: https://api.ipify.org?format=json
+        return_content: true
+      register: _myip
+    - name: Set allow list to this IP/32
+      ansible.builtin.set_fact:
+        _ssh_sources: ["{{ _myip.json.ip }}/32"]
+
+- name: Set the SSH source range (explicit value)
+  ansible.builtin.set_fact:
+    _ssh_sources: "{{ allow_ssh_from if allow_ssh_from is sequence and allow_ssh_from is not string else [allow_ssh_from] }}"
+  when: allow_ssh_from != 'auto'
+
+- name: Read the SSH public key
+  ansible.builtin.set_fact:
+    _ssh_pubkey: "{{ lookup('file', ssh_public_key_file | expanduser) }}"
+
+- name: Register the SSH key with Hetzner
+  hetzner.hcloud.ssh_key:
+    api_token: "{{ hcloud_token }}"
+    name: "{{ server_name }}-key"
+    public_key: "{{ _ssh_pubkey }}"
+    state: present
+
+- name: Create the firewall (SSH from the allow list only)
+  hetzner.hcloud.firewall:
+    api_token: "{{ hcloud_token }}"
+    name: "{{ server_name }}-fw"
+    state: present
+    rules:
+      - direction: in
+        protocol: tcp
+        port: "22"
+        source_ips: "{{ _ssh_sources }}"
+      - direction: in
+        protocol: icmp
+        source_ips: "{{ _ssh_sources }}"
+
+- name: Create the persistent /home volume (unformatted — persistent_home owns the fs)
+  hetzner.hcloud.volume:
+    api_token: "{{ hcloud_token }}"
+    name: "{{ server_name }}-home"
+    size: "{{ volume_size }}"
+    location: "{{ location }}"
+    state: present
+
+- name: Create/ensure the server (attaches the volume, firewall, key)
+  hetzner.hcloud.server:
+    api_token: "{{ hcloud_token }}"
+    name: "{{ server_name }}"
+    server_type: "{{ server_type }}"
+    image: "{{ image }}"
+    location: "{{ location }}"
+    ssh_keys: ["{{ server_name }}-key"]
+    firewalls: ["{{ server_name }}-fw"]
+    volumes: ["{{ server_name }}-home"]
+    labels: "{{ labels }}"
+    state: started
+  register: _server
+
+- name: Wait for SSH to come up
+  ansible.builtin.wait_for:
+    host: "{{ _server.hcloud_server.ipv4_address }}"
+    port: 22
+    delay: 5
+    timeout: 300
+
+- name: Hand the box to the configure play
+  ansible.builtin.add_host:
+    name: "{{ server_name }}"
+    groups: devbox
+    ansible_host: "{{ _server.hcloud_server.ipv4_address }}"
+    ansible_user: root
+    ansible_ssh_private_key_file: "{{ ssh_private_key_file | expanduser }}"
+    devbox_public_ip: "{{ _server.hcloud_server.ipv4_address }}"
+
+- name: Show the box IP
+  ansible.builtin.debug:
+    msg: "devbox '{{ server_name }}' is up at {{ _server.hcloud_server.ipv4_address }}"

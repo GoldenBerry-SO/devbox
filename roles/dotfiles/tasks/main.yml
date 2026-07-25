@@ -1,0 +1,88 @@
+---
+# Seed the owner's home with the zsh / nvim / claude config. Everything is
+# seed-once (force: false) so central updates never clobber the user's own
+# tweaks. Runs after the user + persistent /home exist.
+
+- name: Home subdirectories
+  ansible.builtin.file:
+    path: "/home/{{ devbox_user }}/{{ item }}"
+    state: directory
+    owner: "{{ devbox_user }}"
+    group: "{{ devbox_user }}"
+    mode: "0755"
+  loop: [".config", ".claude", ".local/bin", "Src", "screenshots"]
+
+- name: Seed .zshrc
+  ansible.builtin.copy:
+    src: dot-zshrc
+    dest: "/home/{{ devbox_user }}/.zshrc"
+    owner: "{{ devbox_user }}"
+    group: "{{ devbox_user }}"
+    mode: "0644"
+    force: false
+
+- name: Seed Neovim (LazyVim) config
+  ansible.builtin.copy:
+    src: config-nvim/
+    dest: "/home/{{ devbox_user }}/.config/nvim/"
+    owner: "{{ devbox_user }}"
+    group: "{{ devbox_user }}"
+    mode: "0644"
+    force: false
+
+- name: Seed Claude Code defaults
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "/home/{{ devbox_user }}/{{ item.dest }}"
+    owner: "{{ devbox_user }}"
+    group: "{{ devbox_user }}"
+    mode: "0644"
+    force: false
+  loop:
+    - { src: dot-claude.json, dest: .claude.json }
+    - { src: claude-CLAUDE.md, dest: .claude/CLAUDE.md }
+    - { src: claude-settings.json, dest: .claude/settings.json }
+    - { src: ccstatusline/settings.json, dest: .config/ccstatusline/settings.json }
+
+- name: Fix ownership of seeded config dirs (copy of a tree can miss subdirs)
+  ansible.builtin.file:
+    path: "/home/{{ devbox_user }}/{{ item }}"
+    state: directory
+    owner: "{{ devbox_user }}"
+    group: "{{ devbox_user }}"
+    recurse: true
+  loop: [".config/nvim", ".config/ccstatusline", ".claude"]
+
+# --- first-login walkthrough + repo helper ---
+- name: Write the configured repo list
+  ansible.builtin.copy:
+    dest: /etc/devbox/repos
+    content: "{{ repos | join('\n') }}\n"
+    mode: "0644"
+  when: repos | default([]) | length > 0
+
+- name: Ensure /etc/devbox exists
+  ansible.builtin.file:
+    path: /etc/devbox
+    state: directory
+    mode: "0755"
+
+- name: Install first-login walkthrough
+  ansible.builtin.copy:
+    src: first-login.sh
+    dest: /usr/local/share/devbox/first-login.sh
+    mode: "0755"
+
+- name: Install the devbox-repos helper
+  ansible.builtin.copy:
+    src: devbox-repos
+    dest: /usr/local/bin/devbox-repos
+    mode: "0755"
+
+- name: Hook first-login into the login shells
+  ansible.builtin.lineinfile:
+    path: "{{ item }}"
+    line: '[ -x /usr/local/share/devbox/first-login.sh ] && /usr/local/share/devbox/first-login.sh'
+    create: true
+    mode: "0644"
+  loop: ["/etc/zsh/zshrc", "/etc/bash.bashrc"]

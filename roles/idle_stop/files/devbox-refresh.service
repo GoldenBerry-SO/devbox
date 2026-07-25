@@ -1,0 +1,7 @@
+[Unit]
+Description=devbox nightly tool refresh
+Wants=network-online.target
+After=network-online.target
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/devbox-nightly-refresh

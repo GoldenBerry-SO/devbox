@@ -1,0 +1,35 @@
+---
+# Defaults for every knob. Override any of these in config.yml (which wins).
+# You normally only need to set hcloud_token + ssh keys in config.yml.
+
+# --- provider ---
+provider: hetzner            # 'hetzner' provisions a box; 'existing' = bring-your-own host
+
+# --- hetzner box ---
+server_name: devbox
+server_type: cpx41           # 8 vCPU / 16 GB shared. cpx51 = 16 vCPU / 32 GB.
+location: nbg1               # nbg1/fsn1/hel1 (DE/FI), ash/hil (US)
+image: ubuntu-24.04
+volume_size: 100             # GB, the persistent /home volume
+labels:
+  managed-by: devbox
+
+# --- access ---
+devbox_user: dev
+devbox_uid: 1000             # pinned so /home ownership survives rebuilds
+ssh_host_alias: devbox       # the Host in ~/.ssh/config -> `ssh devbox`
+allow_ssh_from: auto         # 'auto' = your current public IP/32; or a CIDR list; or 0.0.0.0/0
+ssh_public_key_file: "~/.ssh/id_ed25519.pub"
+ssh_private_key_file: "~/.ssh/id_ed25519"
+
+# --- feature toggles (defaults = the full experience) ---
+features:
+  agent: true                # herdr + claude-code + codex + chrome + playwright
+  k8s: true                  # kubectl + helm + k9s + kubeconform
+  cloud: false               # add terraform + packer (gh/glab are always installed)
+  browsers: true             # chrome + playwright chromium (also pulled in by agent)
+  idle_stop: true            # power off after ~2h genuine idle
+  dotfiles: true             # seed the zsh / nvim / claude config
+
+# --- optional: repos cloned into ~/Src on first login ---
+repos: []

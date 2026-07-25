@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# devbox start — power the box on and wait for ssh.
+set -euo pipefail
+cd "$(dirname "$0")"
+exec ansible-playbook devbox.yml --tags never,power -e "devbox_action=start"

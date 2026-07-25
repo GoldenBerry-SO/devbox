@@ -1,0 +1,20 @@
+#!/bin/sh
+# Clone the repos listed in /etc/devbox/repos into ~/Src (idempotent).
+# The list comes from `repos:` in your devbox config.yml. Needs `gh auth login`
+# (or an ssh key) for private repos.
+set -eu
+LIST=/etc/devbox/repos
+[ -s "$LIST" ] || { echo "No repos configured (set 'repos:' in config.yml)."; exit 0; }
+mkdir -p "$HOME/Src"; cd "$HOME/Src"
+while IFS= read -r url; do
+    [ -z "$url" ] && continue
+    case "$url" in \#*) continue ;; esac
+    name=$(basename "$url" .git)
+    if [ -d "$name/.git" ]; then
+        echo "= $name already cloned"
+    else
+        echo "+ cloning $name"
+        git clone "$url" || echo "  (failed — is gh/ssh auth set up?)"
+    fi
+done < "$LIST"
+echo "done. repos are in ~/Src"

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# devbox down — delete the SERVER but keep the volume (your /home).
+#   --purge   also delete the volume (destroys your work — asks first)
+set -euo pipefail
+cd "$(dirname "$0")"
+PURGE=false; [ "${1:-}" = "--purge" ] && PURGE=true
+
+if $PURGE; then
+  echo "--purge also deletes the persistent volume. Your /home and everything"
+  echo "on it is gone for good — a normal ./down (no flag) keeps it."
+  read -r -p "Type 'destroy' to confirm: " ans
+  [ "$ans" = "destroy" ] || { echo "Aborted."; exit 1; }
+fi
+
+exec ansible-playbook devbox.yml --tags never,teardown \
+  -e "devbox_action=down devbox_purge_volume=${PURGE}"

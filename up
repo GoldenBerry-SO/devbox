@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# devbox up — create/update the box, configure it, wire up ssh.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+[ -f config.yml ] || { echo "No config.yml. Run:  cp config.example.yml config.yml  and edit it."; exit 1; }
+
+command -v ansible-playbook >/dev/null || { echo "Install Ansible first: https://docs.ansible.com/ansible/latest/installation_guide/"; exit 1; }
+python3 -c 'import hcloud' 2>/dev/null || { echo "Installing hcloud SDK..."; pip install --quiet hcloud || pip3 install --quiet hcloud; }
+
+if ! ansible-galaxy collection list hetzner.hcloud >/dev/null 2>&1; then
+  echo "Installing Ansible collections..."
+  ansible-galaxy collection install -r requirements.yml -p ./.ansible/collections
+fi
+
+if grep -q 'lookup(.*env.*HCLOUD_TOKEN' config.yml && [ -z "${HCLOUD_TOKEN:-}" ]; then
+  echo "HCLOUD_TOKEN is not set. Run:  export HCLOUD_TOKEN=<your-hetzner-api-token>"; exit 1
+fi
+
+exec ansible-playbook devbox.yml "$@"

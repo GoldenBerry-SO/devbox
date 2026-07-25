@@ -1,0 +1,14 @@
+#!/bin/sh
+# devbox MOTD — shown at every login.
+C="\033[1;36m"; B="\033[1;96m"; D="\033[2m"; R="\033[0m"
+printf "\n"
+printf "${C}   ██████╗ ███████╗██╗   ██╗██████╗  ██████╗ ██╗  ██╗${R}\n"
+printf "${C}   ██╔══██╗██╔════╝██║   ██║██╔══██╗██╔═══██╗╚██╗██╔╝${R}\n"
+printf "${B}   ██║  ██║█████╗  ██║   ██║██████╔╝██║   ██║ ╚███╔╝ ${R}\n"
+printf "${B}   ██║  ██║██╔══╝  ╚██╗ ██╔╝██╔══██╗██║   ██║ ██╔██╗ ${R}\n"
+printf "${C}   ██████╔╝███████╗ ╚████╔╝ ██████╔╝╚██████╔╝██╔╝ ██╗${R}\n"
+printf "${C}   ╚═════╝ ╚══════╝  ╚═══╝  ╚═════╝  ╚═════╝ ╚═╝  ╚═╝${R}\n"
+printf "${D}   your laptop can sleep. your agents don't.${R}\n"
+printf "\n"
+printf "${D}   %s · up %s · docs: github.com/GoldenBerry-SO/devbox${R}\n" "$(hostname -s)" "$(uptime -p | sed 's/up //')"
+printf "\n"

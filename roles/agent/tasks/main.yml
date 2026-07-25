@@ -1,0 +1,79 @@
+---
+# The agent stack: herdr (persistent remote agent sessions), Claude Code, Codex,
+# ccstatusline, plus Chrome + a shared Playwright Chromium for headless browser
+# testing. Enabled by features.agent (default true).
+
+- name: Install herdr
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL https://herdr.dev/install.sh | HOME=/tmp/herdr-install sh
+    find /tmp/herdr-install -name herdr -type f -exec mv {} /usr/local/bin/herdr \;
+    chmod +x /usr/local/bin/herdr
+    rm -rf /tmp/herdr-install
+  args:
+    executable: /bin/bash
+    creates: /usr/local/bin/herdr
+
+- name: Agent CLIs (global npm)
+  community.general.npm:
+    name: "{{ item }}"
+    global: true
+  loop:
+    - "@anthropic-ai/claude-code"
+    - "@openai/codex"
+    - ccstatusline
+
+- name: Browsers for headless testing
+  when: features.browsers | default(true)
+  block:
+    - name: Google Chrome keyring
+      ansible.builtin.get_url:
+        url: https://dl.google.com/linux/linux_signing_key.pub
+        dest: /etc/apt/keyrings/google-chrome.asc
+        mode: "0644"
+
+    - name: Google Chrome repo
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.asc] https://dl.google.com/linux/chrome/deb/ stable main"
+        filename: google-chrome
+        state: present
+
+    - name: Install google-chrome-stable
+      ansible.builtin.apt:
+        name: google-chrome-stable
+        update_cache: true
+        state: present
+
+    # Playwright chromium in a SHARED path so every user/agent finds it without
+    # a per-user download. .links must be writable too — playwright registers
+    # the calling package there before downloading.
+    - name: Install Playwright Chromium into a shared cache
+      ansible.builtin.shell: |
+        set -o pipefail
+        export PLAYWRIGHT_BROWSERS_PATH=/usr/local/ms-playwright
+        npx -y playwright@latest install --with-deps chromium
+      args:
+        executable: /bin/bash
+        creates: /usr/local/ms-playwright
+
+    - name: Make the shared playwright cache world-writable (sticky, like /tmp)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "1777"
+      loop:
+        - /usr/local/ms-playwright
+        - /usr/local/ms-playwright/.links
+
+    - name: Export PLAYWRIGHT_BROWSERS_PATH for all shells
+      ansible.builtin.copy:
+        dest: /etc/profile.d/playwright.sh
+        mode: "0644"
+        content: "export PLAYWRIGHT_BROWSERS_PATH=/usr/local/ms-playwright\n"
+
+    - name: …and for zsh non-login shells
+      ansible.builtin.lineinfile:
+        path: /etc/zsh/zshenv
+        line: 'export PLAYWRIGHT_BROWSERS_PATH=/usr/local/ms-playwright'
+        create: true
+        mode: "0644"

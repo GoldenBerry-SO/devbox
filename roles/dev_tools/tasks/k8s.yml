@@ -1,0 +1,48 @@
+---
+# kubectl + helm + k9s + kubeconform. Enabled by features.k8s.
+- name: Kubernetes apt keyring
+  ansible.builtin.get_url:
+    url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
+    dest: /etc/apt/keyrings/kubernetes.asc
+    mode: "0644"
+
+- name: Add kubectl apt repo
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes.asc] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
+    filename: kubernetes
+    state: present
+
+- name: Install kubectl
+  ansible.builtin.apt:
+    name: kubectl
+    update_cache: true
+    state: present
+
+- name: Install helm
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    executable: /bin/bash
+    creates: /usr/local/bin/helm
+
+- name: Install kubeconform
+  ansible.builtin.unarchive:
+    src: https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+    dest: /usr/local/bin
+    include: [kubeconform]
+    remote_src: true
+
+- name: Install k9s
+  block:
+    - name: Resolve latest k9s tag
+      ansible.builtin.uri:
+        url: https://api.github.com/repos/derailed/k9s/releases/latest
+        return_content: true
+      register: _k9s
+    - name: Install k9s
+      ansible.builtin.unarchive:
+        src: "https://github.com/derailed/k9s/releases/download/{{ _k9s.json.tag_name }}/k9s_Linux_amd64.tar.gz"
+        dest: /usr/local/bin
+        include: [k9s]
+        remote_src: true

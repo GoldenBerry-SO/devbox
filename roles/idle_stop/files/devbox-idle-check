@@ -1,0 +1,40 @@
+#!/bin/bash
+# Idle-aware shutdown (systemd timer, every 15 min). Powers off after 8
+# consecutive idle checks (~2h). A working box never stops. Wake it with
+# `./start` from your devbox checkout.
+set -euo pipefail
+STATE=/var/lib/devbox/idle-count
+mkdir -p /var/lib/devbox
+
+busy() {
+    # Any SSH connection at all (network-level — catches scp/rsync/non-TTY)?
+    CONNS=$(ss -tnH state established '( sport = :22 )' 2>/dev/null | wc -l)
+    [ "$CONNS" -gt 0 ] && { echo "ssh connections: $CONNS"; return 0; }
+    # Any agent at work?
+    pgrep -fa "claude|codex|herdr" >/dev/null 2>&1 && { echo "agent process"; return 0; }
+    # Anything meaningfully using CPU (builds, tests, compose)?
+    LOAD=$(awk '{print $2}' /proc/loadavg)
+    awk -v l="$LOAD" 'BEGIN{exit !(l > 0.4)}' && { echo "load $LOAD"; return 0; }
+    # Any docker container burning CPU?
+    if command -v docker >/dev/null; then
+        CPUS=$(docker stats --no-stream --format '{{.CPUPerc}}' 2>/dev/null | tr -d '%' | awk '{s+=$1} END{print s+0}')
+        awk -v c="$CPUS" 'BEGIN{exit !(c > 5)}' && { echo "docker cpu ${CPUS}%"; return 0; }
+    fi
+    return 1
+}
+
+if REASON=$(busy); then
+    echo "busy: $REASON — resetting idle counter"
+    echo 0 > "$STATE"; exit 0
+fi
+
+COUNT=$(( $(cat "$STATE" 2>/dev/null || echo 0) + 1 ))
+echo "$COUNT" > "$STATE"
+echo "idle check $COUNT/8"
+
+if [ "$COUNT" -ge 8 ]; then
+    echo "idle for ~2h — shutting down. Wake it with: ./start"
+    wall "devbox idle for 2h — shutting down in 2 minutes. Open an SSH session to cancel." || true
+    sleep 120
+    if ! busy; then systemctl poweroff; else echo 0 > "$STATE"; fi
+fi
