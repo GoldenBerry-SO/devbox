@@ -10,7 +10,7 @@
     owner: "{{ devbox_user }}"
     group: "{{ devbox_user }}"
     mode: "0755"
-  loop: [".config", ".claude", ".local/bin", "Src", "screenshots"]
+  loop: [".config", ".config/ccstatusline", ".claude", ".local/bin", "Src", "screenshots"]
 
 - name: Seed .zshrc
   ansible.builtin.copy:
@@ -54,18 +54,22 @@
   loop: [".config/nvim", ".config/ccstatusline", ".claude"]
 
 # --- first-login walkthrough + repo helper ---
+# Create the target dirs first — copy does not make missing parents.
+- name: Ensure the devbox system dirs exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /etc/devbox
+    - /usr/local/share/devbox
+
 - name: Write the configured repo list
   ansible.builtin.copy:
     dest: /etc/devbox/repos
     content: "{{ repos | join('\n') }}\n"
     mode: "0644"
   when: repos | default([]) | length > 0
-
-- name: Ensure /etc/devbox exists
-  ansible.builtin.file:
-    path: /etc/devbox
-    state: directory
-    mode: "0755"
 
 - name: Install first-login walkthrough
   ansible.builtin.copy:

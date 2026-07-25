@@ -11,8 +11,13 @@
   gather_facts: false
   vars_files: [config.yml]
   tasks:
+    # import_role (static), NOT include_role: the lifecycle tasks inside carry
+    # [never, power] / [never, teardown] tags, and ./stop, ./start, ./down run
+    # the playbook with --tags power/teardown. A dynamic include is skipped
+    # under a tag filter unless the include itself is tagged, which would make
+    # those inner tags dead. Static import inlines the tasks so their tags win.
     - name: Provision the Hetzner box
-      ansible.builtin.include_role:
+      ansible.builtin.import_role:
         name: hetzner_provision
       when: provider | default('hetzner') == 'hetzner'
 

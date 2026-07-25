@@ -81,6 +81,12 @@
     depth: 1
     version: master
 
+- name: Create the omarchy-zsh shell dir (copy won't make parents)
+  ansible.builtin.file:
+    path: /usr/share/omarchy-zsh/shell
+    state: directory
+    mode: "0755"
+
 - name: Shell stand-ins (sourced by the zshrc)
   ansible.builtin.copy:
     src: "omarchy/{{ item }}"

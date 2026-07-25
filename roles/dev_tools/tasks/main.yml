@@ -2,6 +2,14 @@
 # Docker, Node, language runtimes, git tooling and the everyday CLI kit.
 # Cloud/K8s extras are split into toggleable includes at the end.
 
+# Not guaranteed to exist on a stock image (absent on Ubuntu 22.04), and
+# get_url won't create it — every third-party repo below drops a key here.
+- name: Ensure the apt keyrings dir exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
 # --- Docker (official repo) ---
 - name: Docker apt keyring
   ansible.builtin.get_url:
