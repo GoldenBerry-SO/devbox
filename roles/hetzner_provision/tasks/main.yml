@@ -41,9 +41,11 @@
         url: https://api.ipify.org?format=json
         return_content: true
       register: _myip
-    - name: Set allow list to this IP/32
+    # /32 for IPv4, /128 for IPv6 — a v6 address with /32 would open a huge
+    # block instead of the single controller (ipify returns v6 on a v6 uplink).
+    - name: Set allow list to just this host
       ansible.builtin.set_fact:
-        _ssh_sources: ["{{ _myip.json.ip }}/32"]
+        _ssh_sources: ["{{ _myip.json.ip }}/{{ '128' if ':' in _myip.json.ip else '32' }}"]
 
 - name: Set the SSH source range (explicit value)
   ansible.builtin.set_fact:

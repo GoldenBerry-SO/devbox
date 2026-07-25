@@ -6,7 +6,19 @@ cd "$(dirname "$0")"
 [ -f config.yml ] || { echo "No config.yml. Run:  cp config.example.yml config.yml  and edit it."; exit 1; }
 
 command -v ansible-playbook >/dev/null || { echo "Install Ansible first: https://docs.ansible.com/ansible/latest/installation_guide/"; exit 1; }
-python3 -c 'import hcloud' 2>/dev/null || { echo "Installing hcloud SDK..."; pip install --quiet hcloud || pip3 install --quiet hcloud; }
+
+# The hcloud SDK must import under the SAME Python that Ansible runs (it may
+# live in a pipx/venv), not just any python3 on PATH. Ask Ansible which Python
+# it uses, then check/install there.
+ANSIBLE_PY=$(ansible --version 2>/dev/null | sed -n 's/.*python version.*(\(\/[^)]*\)).*/\1/p' | head -1)
+[ -x "${ANSIBLE_PY:-}" ] || ANSIBLE_PY=$(command -v python3)
+if ! "$ANSIBLE_PY" -c 'import hcloud' 2>/dev/null; then
+  echo "Installing the hcloud SDK into Ansible's Python ($ANSIBLE_PY)..."
+  "$ANSIBLE_PY" -m pip install --quiet hcloud 2>/dev/null \
+    || "$ANSIBLE_PY" -m pip install --quiet --user --break-system-packages hcloud 2>/dev/null \
+    || { echo "Couldn't auto-install hcloud. Install it into Ansible's environment, e.g.:"; \
+         echo "  $ANSIBLE_PY -m pip install hcloud    (or: pipx inject ansible hcloud)"; exit 1; }
+fi
 
 if ! ansible-galaxy collection list hetzner.hcloud >/dev/null 2>&1; then
   echo "Installing Ansible collections..."
