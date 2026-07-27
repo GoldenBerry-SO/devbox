@@ -5,7 +5,7 @@
 One command spins up a personal, always-on Linux dev box on [Hetzner Cloud](https://www.hetzner.com/cloud) —
 fully loaded and gorgeous out of the box: `zsh` + `starship` + Neovim (LazyVim), Docker,
 Node, the whole modern CLI toolchain, headless Chrome, and an AI-agent stack
-([herdr](https://herdr.dev), Claude Code, Codex) so your agents keep working while your
+([herdr](https://herdr.dev), Claude Code, Codex, pi) so your agents keep working while your
 laptop is closed.
 
 It's driven by **Ansible** against stock Ubuntu 24.04 — no image to bake, no lock-in. Your
@@ -27,9 +27,9 @@ herdr --remote devbox                 # start an agent that outlives your laptop
 - **Editor**: Neovim (latest) preconfigured with LazyVim.
 - **Containers**: Docker CE + compose + buildx.
 - **Languages & runtimes**: Node 24, `bun`, `uv`, pnpm, yarn (via corepack).
-- **Agent stack** *(toggle: `agent`)*: herdr, Claude Code, Codex, ccstatusline, plus Chrome +
-  Playwright Chromium in a shared cache for headless browser testing and a preconfigured
-  chrome-devtools MCP.
+- **Agent stack** *(toggle: `agent`)*: herdr, Claude Code, Codex, pi, ccstatusline, plus the
+  Playwright CLI + Chrome + Playwright Chromium in a shared cache for headless browser testing
+  and a preconfigured chrome-devtools MCP.
 - **Cloud/K8s tooling** *(toggle: `k8s`)*: kubectl, helm, k9s, kubeconform, yq.
 - **Dev niceties**: `gh`, `glab`, `lazygit`, `git-extras`, `mkcert`, `psql`, `redis-cli`,
   `sqlite3`, `htop`, `tmux` (with a 4-pane `t` helper).

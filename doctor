@@ -8,7 +8,7 @@ echo "== doctor: ssh $ALIAS =="
 ssh "$ALIAS" 'bash -s' <<'REMOTE'
 echo "host: $(hostname)   uptime: $(uptime -p)"
 echo "--- toolchain ---"
-for t in zsh nvim tmux docker node npm bun uv herdr claude codex gh glab git rg fd bat eza fzf starship kubectl helm k9s psql redis-cli mkcert; do
+for t in zsh nvim tmux docker node npm bun uv herdr claude codex pi playwright gh glab git rg fd bat eza fzf starship kubectl helm k9s psql redis-cli mkcert; do
   printf "  %-10s %s\n" "$t" "$(command -v "$t" >/dev/null 2>&1 && "$t" --version 2>/dev/null | head -1 | cut -c1-42 || echo MISSING)"
 done
 echo "--- your personal auth (nothing is shared) ---"

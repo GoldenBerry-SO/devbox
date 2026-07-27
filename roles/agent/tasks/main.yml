@@ -14,14 +14,27 @@
     executable: /bin/bash
     creates: /usr/local/bin/herdr
 
-- name: Agent CLIs (global npm)
+# state: latest so every ./up pulls the current release, not just a first-run
+# install. The nightly-refresh timer keeps them current between rebuilds too.
+- name: Agent CLIs (global npm, always latest)
   community.general.npm:
     name: "{{ item }}"
     global: true
+    state: latest
   loop:
     - "@anthropic-ai/claude-code"
     - "@openai/codex"
     - ccstatusline
+
+# pi (earendil-works) — terminal coding agent; the command is `pi`. Its own
+# docs install with --ignore-scripts for supply-chain safety (it ships a
+# prebuilt bin, so no postinstall is needed).
+- name: Install the pi coding agent (global, latest)
+  community.general.npm:
+    name: "@earendil-works/pi-coding-agent"
+    global: true
+    state: latest
+    ignore_scripts: true
 
 - name: Browsers for headless testing
   when: features.browsers | default(true)
@@ -44,14 +57,22 @@
         update_cache: true
         state: present
 
-    # Playwright chromium in a SHARED path so every user/agent finds it without
-    # a per-user download. .links must be writable too — playwright registers
-    # the calling package there before downloading.
+    # The Playwright CLI itself (playwright codegen / test / open / screenshot),
+    # global so it's a real command on PATH for every user, not npx-on-demand.
+    - name: Install the Playwright CLI (global, latest)
+      community.general.npm:
+        name: playwright
+        global: true
+        state: latest
+
+    # Browsers in a SHARED path so every user/agent finds them without a
+    # per-user download. .links must be writable too — playwright registers the
+    # calling package there before downloading. Uses the CLI just installed.
     - name: Install Playwright Chromium into a shared cache
       ansible.builtin.shell: |
         set -o pipefail
         export PLAYWRIGHT_BROWSERS_PATH=/usr/local/ms-playwright
-        npx -y playwright@latest install --with-deps chromium
+        playwright install --with-deps chromium
       args:
         executable: /bin/bash
         creates: /usr/local/ms-playwright

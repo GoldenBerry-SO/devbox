@@ -24,7 +24,7 @@ ssh_private_key_file: "~/.ssh/id_ed25519"
 
 # --- feature toggles (defaults = the full experience) ---
 features:
-  agent: true                # herdr + claude-code + codex + chrome + playwright
+  agent: true                # herdr + claude-code + codex + pi + playwright cli + chrome
   k8s: true                  # kubectl + helm + k9s + kubeconform
   cloud: false               # add terraform + packer (gh/glab are always installed)
   browsers: true             # chrome + playwright chromium (also pulled in by agent)
