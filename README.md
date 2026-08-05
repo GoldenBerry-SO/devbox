@@ -27,7 +27,7 @@ herdr --remote devbox                 # start an agent that outlives your laptop
 - **Editor**: Neovim (latest) preconfigured with LazyVim.
 - **Containers**: Docker CE + compose + buildx.
 - **Languages & runtimes**: Node 24, `bun`, `uv`, pnpm, yarn (via corepack).
-- **Agent stack** *(toggle: `agent`)*: herdr, Claude Code, Codex, pi, ccstatusline, plus the
+- **Agent stack** *(toggle: `agent`)*: herdr, Claude Code, Codex, pi, graphify, ccstatusline, plus the
   Playwright CLI + Chrome + Playwright Chromium in a shared cache for headless browser testing
   and a preconfigured chrome-devtools MCP.
 - **Cloud/K8s tooling** *(toggle: `k8s`)*: kubectl, helm, k9s, kubeconform, yq.

@@ -18,7 +18,7 @@ devbox is one Ansible run in three plays (`devbox.yml`):
 | `persistent_home` | Mounts the Hetzner volume at `/home`, formatting **only** a fresh volume (never wipes existing data). Runs before the user is created so the home lands on the volume. |
 | `base` | apt essentials, zsh + plugins + starship, the `devbox` user (uid pinned), sudo, SSH key, shell defaults, MOTD, unattended-upgrades. |
 | `dev_tools` | Docker, Node 24, bun/uv, pnpm/yarn, gh/glab, nvim, psql/redis/mkcert/lazygit/ast-grep/yq. Toggle includes: `k8s` (kubectl/helm/k9s/kubeconform), `cloud` (terraform/packer). |
-| `agent` | herdr, Claude Code, Codex, pi, ccstatusline, the Playwright CLI + Chrome + shared Playwright Chromium. Toggle: `features.agent`. |
+| `agent` | herdr, Claude Code, Codex, pi, graphify, ccstatusline, the Playwright CLI + Chrome + shared Playwright Chromium. Toggle: `features.agent`. |
 | `dotfiles` | Seeds `.zshrc` / nvim (LazyVim) / Claude defaults / ccstatusline into the owner's home, seed-once. First-login walkthrough + `devbox-repos` helper. |
 | `idle_stop` | systemd timers: idle-check (~2h → poweroff) + nightly agent-CLI refresh. |
 | `connect` | Local `~/.ssh/config` block. |

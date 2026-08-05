@@ -1,7 +1,7 @@
 ---
 # The agent stack: herdr (persistent remote agent sessions), Claude Code, Codex,
-# ccstatusline, plus Chrome + a shared Playwright Chromium for headless browser
-# testing. Enabled by features.agent (default true).
+# pi, ccstatusline, graphify, plus Chrome + a shared Playwright Chromium for
+# headless browser testing. Enabled by features.agent (default true).
 
 - name: Install herdr
   ansible.builtin.shell: |
@@ -35,6 +35,18 @@
     global: true
     state: latest
     ignore_scripts: true
+
+# graphify — turns a repo (code, docs, PDFs) into a queryable knowledge graph
+# for the AI assistants. Package is 'graphifyy' (double-y is the official one;
+# other graphify* packages are typosquats), CLI is 'graphify'. Installed via uv
+# (from dev_tools) into a shared tool dir with the shim on the system PATH.
+- name: Install graphify (knowledge-graph CLI)
+  ansible.builtin.command: uv tool install graphifyy
+  args:
+    creates: /usr/local/bin/graphify
+  environment:
+    UV_TOOL_DIR: /opt/uv-tools
+    UV_TOOL_BIN_DIR: /usr/local/bin
 
 - name: Browsers for headless testing
   when: features.browsers | default(true)

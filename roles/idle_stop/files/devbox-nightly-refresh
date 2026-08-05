@@ -5,5 +5,6 @@ set -uo pipefail
 echo "== devbox nightly refresh $(date -Is) =="
 npm update -g @anthropic-ai/claude-code @openai/codex playwright 2>&1 | tail -2 || true
 npm update -g --ignore-scripts @earendil-works/pi-coding-agent 2>&1 | tail -1 || true
+UV_TOOL_DIR=/opt/uv-tools UV_TOOL_BIN_DIR=/usr/local/bin uv tool upgrade graphifyy 2>&1 | tail -1 || true
 herdr update 2>&1 | tail -1 || echo "herdr update skipped"
 echo "== refresh done =="
